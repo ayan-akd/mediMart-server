@@ -22,7 +22,7 @@ router.patch(
   MedicineController.updateMedicine,
 );
 
-router.patch(
+router.delete(
   '/medicine/:id',
   auth(USER_ROLE.admin),
   MedicineController.deleteMedicine,
