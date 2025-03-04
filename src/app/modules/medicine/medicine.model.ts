@@ -1,5 +1,6 @@
 import { Schema, model } from "mongoose";
 import { IMedicine, TMedicine } from "./medicine.interface";
+import { medicineCategories } from "./medicine.constant";
 
 const medicineSchema = new Schema<TMedicine, IMedicine>(
   {
@@ -13,6 +14,7 @@ const medicineSchema = new Schema<TMedicine, IMedicine>(
     prescriptionRequired: { type: Boolean, required: true },
     expiryDate: { type: Date, required: true },
     isDeleted: { type: Boolean, required: true, default: false },
+    category: { type: String, required: true, enum: medicineCategories },
   },
   {
     timestamps: true,

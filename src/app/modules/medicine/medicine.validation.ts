@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { medicineCategories } from "./medicine.constant";
 
 const createMedicineValidation = z.object({
   body: z.object({
@@ -30,10 +31,14 @@ const createMedicineValidation = z.object({
       required_error: "Prescription Required is required",
       invalid_type_error: "Prescription Required must be a boolean",
     }),
-    expiryDate: z.date({
+    expiryDate: z.string({
       required_error: "Expiry Date is required",
       invalid_type_error: "Expiry Date must be a date",
-    })
+    }),
+    category: z.enum([...medicineCategories] as [string, ...string[]], {
+      required_error: "Category is required",
+      invalid_type_error: "Category must be a valid medicine category",
+    }),
   }),
 });
 

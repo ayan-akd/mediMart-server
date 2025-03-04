@@ -1,4 +1,5 @@
 import { Model } from "mongoose";
+import { medicineCategories } from "./medicine.constant";
 
 export type TMedicine = {
   name: string;
@@ -11,6 +12,7 @@ export type TMedicine = {
   prescriptionRequired?: boolean;
   expiryDate?: Date;
   isDeleted?: boolean;
+  category: typeof medicineCategories[number];
 };
 
 export interface IMedicine extends Model<TMedicine> {
