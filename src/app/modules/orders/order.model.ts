@@ -17,6 +17,10 @@ const orderSchema = new Schema<TOrder>(
       ref: 'Medicine',
       required: true,
     },
+    city: {
+      type: String,
+      required: true,
+    },
     address: {
       type: String,
       required: true,
@@ -38,7 +42,7 @@ const orderSchema = new Schema<TOrder>(
         'Cancelled',
         'Delivered',
       ],
-      default: 'pending',
+      default: 'Pending',
     },
     transaction: {
       paymentId: {

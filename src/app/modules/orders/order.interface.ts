@@ -6,7 +6,8 @@ export type TOrder = {
   medicine: Types.ObjectId;
   quantity: number;
   totalPrice: number;
-  address?: string;
+  city: string;
+  address: string;
   status?: 'Pending' | 'Processing' | 'Shipped' | 'Cancelled' | 'Delivered';
   transaction?: {
     paymentId?: string;

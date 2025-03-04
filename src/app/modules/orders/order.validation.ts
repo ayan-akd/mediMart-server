@@ -31,6 +31,10 @@ export const orderValidationSchema = z.object({
       required_error: 'Address is required',
       invalid_type_error: 'Address must be a string',
     }),
+    city: z.string({
+      required_error: 'City is required',
+      invalid_type_error: 'City must be a string',
+    })
   }),
 });
 
