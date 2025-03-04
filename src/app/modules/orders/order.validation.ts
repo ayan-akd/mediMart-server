@@ -7,18 +7,18 @@ export const orderValidationSchema = z.object({
       invalid_type_error: 'user must be a valid mongoose id',
     }),
 
-    medicine: z.string({
-      required_error: 'Product ID is required',
-      invalid_type_error: 'Product ID must be a string',
-    }),
-
-    quantity: z
-      .number({
-        required_error: 'Quantity is required',
-        invalid_type_error: 'Quantity must be a positive integer',
+    medicines: z.array(
+      z.object({
+        medicine: z.string({
+          required_error: 'Medicine ID is required',
+          invalid_type_error: 'Medicine ID must be a valid mongoose id',
+        }),
+        quantity: z.number({
+          required_error: 'Quantity is required',
+          invalid_type_error: 'Quantity must be a number',
+        }).positive('Quantity must be a positive number'),
       })
-      .int('Quantity must be an integer')
-      .positive('Quantity must be a positive integer'),
+    ),
 
     totalPrice: z
       .number({
@@ -34,7 +34,7 @@ export const orderValidationSchema = z.object({
     city: z.string({
       required_error: 'City is required',
       invalid_type_error: 'City must be a string',
-    })
+    }),
   }),
 });
 

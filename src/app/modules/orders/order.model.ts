@@ -12,11 +12,19 @@ const orderSchema = new Schema<TOrder>(
       ref: 'User',
       required: true,
     },
-    medicine: {
-      type: Schema.Types.ObjectId,
-      ref: 'Medicine',
-      required: true,
-    },
+    medicines: [
+      {
+        medicine: {
+          type: Schema.Types.ObjectId,
+          ref: 'Medicine',
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
     city: {
       type: String,
       required: true,
@@ -25,23 +33,13 @@ const orderSchema = new Schema<TOrder>(
       type: String,
       required: true,
     },
-    quantity: {
-      type: Number,
-      required: true,
-    },
     totalPrice: {
       type: Number,
       required: true,
     },
     status: {
       type: String,
-      enum: [
-        'Pending',
-        'Processing',
-        'Shipped',
-        'Cancelled',
-        'Delivered',
-      ],
+      enum: ['Pending', 'Processing', 'Shipped', 'Cancelled', 'Delivered'],
       default: 'Pending',
     },
     transaction: {

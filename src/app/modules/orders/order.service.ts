@@ -7,25 +7,9 @@ import { UserModel } from '../user/user.model';
 import { orderUtils } from './order.utils';
 import QueryBuilder from '../../builder/QueryBuilder';
 import MedicineModel from '../medicine/medicine.model';
+import mongoose from 'mongoose';
 
 const createOrderIntoDB = async (order: TOrder, client_ip: string) => {
-  const medicineExists = await MedicineModel.isMedicineExists(
-    order.medicine as unknown as string,
-  );
-
-  if (!medicineExists) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Medicine not found');
-  }
-  const remainingQuantity = medicineExists.quantity - order.quantity;
-
-  if (remainingQuantity < 0) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'Insufficient stock. The order cannot be placed.',
-    );
-  }
-
-
   try {
     // generate order id
     order.orderId = await generateOrderId();
@@ -36,7 +20,7 @@ const createOrderIntoDB = async (order: TOrder, client_ip: string) => {
       throw new AppError(httpStatus.BAD_REQUEST, 'Failed to create order');
     }
 
-    const user = await UserModel.findById(newOrder.user);
+    const user = await UserModel.findById(order.user);
 
     const shurjopayPayload = {
       amount: order.totalPrice,
@@ -46,7 +30,7 @@ const createOrderIntoDB = async (order: TOrder, client_ip: string) => {
       customer_address: order.address,
       customer_email: user?.email,
       customer_phone: 'N/A',
-      customer_city: 'N/A',
+      customer_city: order.city,
       client_ip,
     };
 
@@ -86,71 +70,93 @@ const createOrderIntoDB = async (order: TOrder, client_ip: string) => {
 const verifyPayment = async (paymentId: string) => {
   const payment = await orderUtils.verifyPayment(paymentId);
 
-  if (payment.length) {
-    await OrderModel.findOneAndUpdate(
-      {
-        'transaction.paymentId': paymentId,
-      },
-      {
-        'transaction.bank_status': payment[0].bank_status,
-        'transaction.sp_code': payment[0].sp_code,
-        'transaction.sp_message': payment[0].sp_message,
-        'transaction.method': payment[0].method,
-        'transaction.date_time': payment[0].date_time,
-        'transaction.transactionStatus': payment[0].transaction_status,
-        status:
-          payment[0].bank_status == 'Success'
-            ? 'paid'
-            : payment[0].bank_status == 'Failed'
-              ? 'pending'
-              : payment[0].bank_status == 'Cancel'
-                ? 'cancelled'
-                : '',
-      },
-    );
+  if (!payment || !payment.length) {
+    throw new Error("Invalid payment response or empty payment array");
   }
 
-  if (payment[0].bank_status === 'Success') {
-    // check if order was placed before
-    const orderExists = await OrderModel.findOne({
+  await OrderModel.findOneAndUpdate(
+    {
       'transaction.paymentId': paymentId,
-    });
-
-    if (!orderExists) {
-      throw new AppError(
-        httpStatus.NOT_FOUND,
-        'Order was not placed correctly',
-      );
+    },
+    {
+      'transaction.bank_status': payment[0].bank_status,
+      'transaction.sp_code': payment[0].sp_code,
+      'transaction.sp_message': payment[0].sp_message,
+      'transaction.method': payment[0].method,
+      'transaction.date_time': payment[0].date_time,
+      'transaction.transactionStatus': payment[0].transaction_status,
+      status:
+        payment[0].bank_status === 'Success'
+          ? 'paid'
+          : payment[0].bank_status === 'Failed'
+          ? 'pending'
+          : payment[0].bank_status === 'Cancel'
+          ? 'cancelled'
+          : '',
     }
+  );
 
-    const medicineExists = await MedicineModel.isMedicineExists(
-      orderExists.medicine as unknown as string,
-    );
+  if (payment[0].bank_status === 'Success') {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (!medicineExists) {
-      throw new AppError(
-        httpStatus.NOT_FOUND,
-        'Product was not found in order',
+    try {
+      // Ensure order exists
+      const orderExists = await OrderModel.findOne({
+        'transaction.paymentId': paymentId,
+      });
+
+      if (!orderExists) {
+        throw new AppError(
+          httpStatus.NOT_FOUND,
+          'Order was not placed correctly'
+        );
+      }
+
+      // Update order status (first transaction)
+      const updatedOrder = await OrderModel.findOneAndUpdate(
+        { 'transaction.paymentId': paymentId },
+        { $set: { status: 'paid' } },
+        { new: true, session }
       );
-    }
 
-    const remainingQuantity = medicineExists.quantity - orderExists.quantity;
+      if (!updatedOrder) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Failed to update order');
+      }
 
-    // update medicine quantity (first transaction)
-    const updatedMedicine = await MedicineModel.findOneAndUpdate(
-      { _id: orderExists.medicine },
-      {
-        quantity: remainingQuantity,
-        inStock: remainingQuantity > 0 ? true : false,
-      },
-      { new: true },
-    );
+      // Update medicine quantity (second transaction) and handle errors properly
+      await Promise.all(
+        updatedOrder.medicines.map(async (medicine) => {
+          const medicineData = await MedicineModel.findById(medicine.medicine);
+          if (!medicineData) {
+            throw new AppError(httpStatus.NOT_FOUND, 'Medicine not found');
+          }
 
-    if (!updatedMedicine) {
-      throw new AppError(
-        httpStatus.BAD_REQUEST,
-        'Failed to update medicine stock',
+          const remainingQuantity = medicineData.quantity - medicine.quantity;
+          const result = await MedicineModel.findOneAndUpdate(
+            { _id: medicine.medicine },
+            {
+              quantity: remainingQuantity,
+              inStock: remainingQuantity > 0,
+            },
+            { new: true, session }
+          );
+
+          if (!result) {
+            throw new AppError(
+              httpStatus.BAD_REQUEST,
+              'Failed to update medicine'
+            );
+          }
+        })
       );
+
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err; // Re-throw for proper error handling
+    } finally {
+      await session.endSession();
     }
   }
 
@@ -164,7 +170,7 @@ const getAllOrdersFromDB = async (query: Record<string, unknown>) => {
     .sort()
     .paginate()
     .fields();
-  const data = await orderQuery.modelQuery.populate('user').populate('product');
+  const data = await orderQuery.modelQuery.populate('user').populate('medicine');
   const meta = await orderQuery.countTotal();
   return {
     data,
@@ -175,7 +181,7 @@ const getAllOrdersFromDB = async (query: Record<string, unknown>) => {
 const getMyOrdersFromDB = async (userId: string) => {
   const result = await OrderModel.find({ user: userId })
     .populate('user')
-    .populate('product');
+    .populate('medicine');
   return result;
 };
 const changeOrderStatus = async (id: string, payload: { status: string }) => {
@@ -184,10 +190,7 @@ const changeOrderStatus = async (id: string, payload: { status: string }) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Order not found');
   }
 
-  if (
-    orderExists.status === 'Delivered' ||
-    orderExists.status == 'Shipped'
-  ) {
+  if (orderExists.status === 'Delivered' || orderExists.status == 'Shipped') {
     if (payload.status === 'Pending' || payload.status === 'Cancelled') {
       throw new AppError(
         httpStatus.BAD_REQUEST,

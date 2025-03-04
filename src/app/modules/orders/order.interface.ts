@@ -3,8 +3,7 @@ import { Types } from 'mongoose';
 export type TOrder = {
   orderId: string;
   user: Types.ObjectId;
-  medicine: Types.ObjectId;
-  quantity: number;
+  medicines: {medicine:Types.ObjectId,quantity:number,}[];
   totalPrice: number;
   city: string;
   address: string;
