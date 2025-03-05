@@ -16,7 +16,7 @@ const orderSchema = new Schema<TOrder>(
       {
         medicine: {
           type: Schema.Types.ObjectId,
-          ref: 'Medicine',
+          ref: 'Medicines',
           required: true,
         },
         quantity: {
@@ -25,6 +25,9 @@ const orderSchema = new Schema<TOrder>(
         },
       },
     ],
+    prescription: {
+      type: String,
+    },
     city: {
       type: String,
       required: true,
@@ -39,7 +42,7 @@ const orderSchema = new Schema<TOrder>(
     },
     status: {
       type: String,
-      enum: ['Pending', 'Processing', 'Shipped', 'Cancelled', 'Delivered'],
+      enum: ['Pending', 'Failed', 'Paid', 'Processing', 'Shipped', 'Cancelled', 'Delivered'],
       default: 'Pending',
     },
     transaction: {

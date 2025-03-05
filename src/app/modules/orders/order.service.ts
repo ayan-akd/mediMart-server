@@ -87,11 +87,11 @@ const verifyPayment = async (paymentId: string) => {
       'transaction.transactionStatus': payment[0].transaction_status,
       status:
         payment[0].bank_status === 'Success'
-          ? 'paid'
+          ? 'Paid'
           : payment[0].bank_status === 'Failed'
-          ? 'pending'
+          ? 'Failed'
           : payment[0].bank_status === 'Cancel'
-          ? 'cancelled'
+          ? 'Cancelled'
           : '',
     }
   );
@@ -116,7 +116,7 @@ const verifyPayment = async (paymentId: string) => {
       // Update order status (first transaction)
       const updatedOrder = await OrderModel.findOneAndUpdate(
         { 'transaction.paymentId': paymentId },
-        { $set: { status: 'paid' } },
+        { $set: { status: 'Paid' } },
         { new: true, session }
       );
 
@@ -170,7 +170,7 @@ const getAllOrdersFromDB = async (query: Record<string, unknown>) => {
     .sort()
     .paginate()
     .fields();
-  const data = await orderQuery.modelQuery.populate('user').populate('medicine');
+  const data = await orderQuery.modelQuery.populate('user').populate('medicines.medicine');
   const meta = await orderQuery.countTotal();
   return {
     data,
@@ -181,7 +181,7 @@ const getAllOrdersFromDB = async (query: Record<string, unknown>) => {
 const getMyOrdersFromDB = async (userId: string) => {
   const result = await OrderModel.find({ user: userId })
     .populate('user')
-    .populate('medicine');
+    .populate('medicines.medicine');
   return result;
 };
 const changeOrderStatus = async (id: string, payload: { status: string }) => {
@@ -200,7 +200,7 @@ const changeOrderStatus = async (id: string, payload: { status: string }) => {
   }
 
   if (orderExists.status === 'Shipped') {
-    if (payload.status !== 'delivered') {
+    if (payload.status !== 'Delivered') {
       throw new AppError(
         httpStatus.BAD_REQUEST,
         `Order already ${orderExists.status}`,
