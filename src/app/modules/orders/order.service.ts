@@ -8,6 +8,10 @@ import { orderUtils } from './order.utils';
 import QueryBuilder from '../../builder/QueryBuilder';
 import MedicineModel from '../medicine/medicine.model';
 import mongoose from 'mongoose';
+import {
+  sendPaymentConfirmationEmail,
+  sendRequestStatusChangeEmail,
+} from '../../utils/sendMail';
 
 const createOrderIntoDB = async (order: TOrder, client_ip: string) => {
   try {
@@ -71,7 +75,7 @@ const verifyPayment = async (paymentId: string) => {
   const payment = await orderUtils.verifyPayment(paymentId);
 
   if (!payment || !payment.length) {
-    throw new Error("Invalid payment response or empty payment array");
+    throw new Error('Invalid payment response or empty payment array');
   }
 
   await OrderModel.findOneAndUpdate(
@@ -89,11 +93,11 @@ const verifyPayment = async (paymentId: string) => {
         payment[0].bank_status === 'Success'
           ? 'Paid'
           : payment[0].bank_status === 'Failed'
-          ? 'Failed'
-          : payment[0].bank_status === 'Cancel'
-          ? 'Cancelled'
-          : '',
-    }
+            ? 'Failed'
+            : payment[0].bank_status === 'Cancel'
+              ? 'Cancelled'
+              : '',
+    },
   );
 
   if (payment[0].bank_status === 'Success') {
@@ -109,7 +113,7 @@ const verifyPayment = async (paymentId: string) => {
       if (!orderExists) {
         throw new AppError(
           httpStatus.NOT_FOUND,
-          'Order was not placed correctly'
+          'Order was not placed correctly',
         );
       }
 
@@ -117,7 +121,7 @@ const verifyPayment = async (paymentId: string) => {
       const updatedOrder = await OrderModel.findOneAndUpdate(
         { 'transaction.paymentId': paymentId },
         { $set: { status: 'Paid' } },
-        { new: true, session }
+        { new: true, session },
       );
 
       if (!updatedOrder) {
@@ -139,17 +143,33 @@ const verifyPayment = async (paymentId: string) => {
               quantity: remainingQuantity,
               inStock: remainingQuantity > 0,
             },
-            { new: true, session }
+            { new: true, session },
           );
 
           if (!result) {
             throw new AppError(
               httpStatus.BAD_REQUEST,
-              'Failed to update medicine'
+              'Failed to update medicine',
             );
           }
-        })
+        }),
       );
+
+      const user = await UserModel.findById(updatedOrder.user);
+      if (!user) {
+        throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+      }
+
+      const info = await sendPaymentConfirmationEmail(
+        user.email,
+        updatedOrder.orderId,
+        updatedOrder.transaction?.paymentId as string,
+        updatedOrder.totalPrice,
+      );
+
+      if (!info) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Failed to send email');
+      }
 
       await session.commitTransaction();
     } catch (err) {
@@ -163,14 +183,15 @@ const verifyPayment = async (paymentId: string) => {
   return payment;
 };
 
-
 const getAllOrdersFromDB = async (query: Record<string, unknown>) => {
   const orderQuery = new QueryBuilder(OrderModel.find(), query)
     .filter()
     .sort()
     .paginate()
     .fields();
-  const data = await orderQuery.modelQuery.populate('user').populate('medicines.medicine');
+  const data = await orderQuery.modelQuery
+    .populate('user')
+    .populate('medicines.medicine');
   const meta = await orderQuery.countTotal();
   return {
     data,
@@ -184,6 +205,7 @@ const getMyOrdersFromDB = async (userId: string) => {
     .populate('medicines.medicine');
   return result;
 };
+
 const changeOrderStatus = async (id: string, payload: { status: string }) => {
   const orderExists = await OrderModel.findById(id);
   if (!orderExists) {
@@ -216,6 +238,22 @@ const changeOrderStatus = async (id: string, payload: { status: string }) => {
   }
 
   const result = await OrderModel.findByIdAndUpdate(id, payload, { new: true });
+
+  const user = await UserModel.findById(orderExists.user);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  const info = await sendRequestStatusChangeEmail(
+    user.email,
+    orderExists.orderId,
+    result?.status as string,
+  );
+
+  if (!info) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Failed to send email');
+  }
+
   return result;
 };
 

@@ -22,4 +22,6 @@ export default {
   sp_password: process.env.SP_PASSWORD,
   sp_prefix: process.env.SP_PREFIX,
   sp_return_url: process.env.SP_RETURN_URL,
+  sender_email: process.env.SENDER_EMAIL,
+  sender_app_pass: process.env.SENDER_APP_PASS,
 };
