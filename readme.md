@@ -1,19 +1,21 @@
-# Pedal Paradise Server
+# MediMart💊 Server
 
-A backend server built using **Node.js**, **Express**, and **MongoDB**. This API handles bicycle inventory, orders, and revenue calculations. It supports CRUD operations for bicycles, manages orders with automatic stock updates, and integrates secure payment processing. The application also features role-based access control (RBAC) for user permissions and provides a robust error-handling mechanism to ensure stability and security.
+A backend server built using **Node.js**, **Express**, and **MongoDB** for a medicine e-commerce platform. This API handles medicine inventory, user authentication, order management, and secure prescription-based purchases. It supports CRUD operations for medicines, manages orders with automatic stock updates, and integrates secure payment processing via ShurjoPay. The application features role-based access control (RBAC) for different user permissions and provides robust error handling to ensure stability and security.
 
 ## 📋 Features
 
-- **User Authentication & Management**: Secure user authentication with JWT-based authorization and role-based access control (RBAC).
-- **Store Bicycle Data**: Store and manage bicycle details in the database.
-- **Create, Read, Update, and Delete Bicycle Details**: Fully manage bicycle records via API endpoints.
-- **Store Orders**: Create orders and automatically update the stock quantity.
-- **Process Payments**: Integrate a secure payment gateway to handle transactions efficiently.
-- **Calculate Total Revenue**: Calculate the total revenue generated from all orders.
-- **Search Bicycles**: Retrieve bicycles based on query search terms.
+- **User Authentication & Management**: Secure user authentication with JWT-based authorization and role-based access control (Admin vs. Customer).
+- **Medicine Management**: Store and manage medicine details in the database, including prescription requirements.
+- **Create, Read, Update, and Delete Medicine Details**: Fully manage medicine records via API endpoints.
+- **Order Processing**: Create orders and automatically update stock quantities.
+- **Prescription Verification**: Upload and verify prescriptions for restricted medicines.
+- **Process Payments**: Integrate ShurjoPay payment gateway to handle transactions securely.
+- **Order Tracking**: Track orders with status updates (Pending, Paid, Processing, Shipped, Delivered, Cancelled, Failed).
+- **Search & Filter Medicines**: Retrieve medicines based on name, category, or symptoms.
+- **Email Notifications**: Send order confirmations and status updates via Nodemailer.
 - **Validate User Inputs**: Ensure data integrity using **Zod** for input validation.
-- **Error Handling**: Provides meaningful error messages for a better user experience.
-- **TypeScript Integration**: Type annotations for reliability and maintainability of the application.
+- **Error Handling**: Provide meaningful error messages for a better user experience.
+- **TypeScript Integration**: Type annotations for reliability and maintainability.
 - **MongoDB Integration**: Use **Mongoose** to interact with MongoDB for efficient data handling and validation.
 - **Code Linting & Formatting**: Enforce code quality with **ESLint** and **Prettier** for consistent code style.
 
@@ -34,26 +36,24 @@ Ensure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/ayan-akd/b4-assignment-4-bicycle-store-server.git
-    ```
-2. Install dependencies:
+   git clone https://github.com/ayan-akd/mediMart-server.git
+   ```
 
+2. Install dependencies:
    ```bash
-   cd b4-assignment-4-bicycle-store-server
+   cd mediMart-server
    npm install
    ```
 
-3. Create a .env file in the root directory based on the provided .env.example file. Update the necessary values according to your environment:
-
+3. Create a .env file in the root directory. Update the necessary values according to your environment:
    ```bash
    MONGODB_URI=your_mongodb_connection_string
-   etc..........
+   etc.......
    ```
 
 4. Start the development server:
-
    ```bash
-   npm run start:dev
+   npm run dev
    ```
 
 The server will run at http://localhost:5000 (or another port if you configure it differently).
@@ -65,44 +65,45 @@ The project includes several npm scripts for development and production:
 - `npm run start`: Starts the application in production mode.
 - `npm run start:dev`: Starts the application in development mode with live reloading using `ts-node-dev`.
 - `npm run build`: Builds the production application.
-- `npm run dev`: Watches for changes and compiles TypeScript files automatically.
+- `npm run dev`: Watches for changes and compiles TypeScript files automatically using tsx.
 - `npm run lint`: Lints the codebase using **ESLint**.
 - `npm run lint:fix`: Automatically fixes linting errors.
 - `npm run format`: Formats the codebase using **Prettier**.
 - `npm run format:fix`: Automatically fixes formatting issues with **Prettier**.
+- `npm run create:module`: Creates new module templates using custom script.
 
 ## API Endpoints
 
 ### Authentication
 
 - **POST /api/auth/login**: Authenticate a user and return an access token.
-- **POST /api/auth/change-password**: Allows an authenticated user to change their password.
+- **POST /api/auth/change-password**: Allow an authenticated user to change their password.
 - **POST /api/auth/refresh-token**: Generate a new access token using a refresh token.
 
-### User
+### User Management
 
 - **GET /api/users**: Retrieve a list of all registered users (Admin access required).
 - **GET /api/users/me**: Retrieve the authenticated user's profile information.
-- **POST /api/users/create-user**: Register a new user account.
+- **POST /api/users/create-user**: Create a new user account with username, email, and password.
+- **PATCH /api/users/update-user/:id**: Update user profile information.
 - **PATCH /api/users/change-status/:id**: Update the status (active/blocked) of a user (Admin access required).
 
-### Products (Bicycles)
+### Medicines
 
-- **GET /api/products**: Retrieve a list of all bicycles in the inventory.
-- **GET /api/products/:id**: Retrieve detailed information for a specific bicycle by its ID.
-- **GET /api/brands**: Retrieve a list of all bicycle brands available.
-- **POST /api/products**: Add a new bicycle to the inventory.
-- **PUT /api/products/:id**: Update the details of a specific bicycle (identified by ID).
-- **DELETE /api/products/:id**: Delete a specific bicycle from the inventory (identified by ID).
+- **GET /api/medicine**: Retrieve a list of all medicines in the inventory.
+- **GET /api/medicine/:id**: Retrieve detailed information for a specific medicine by its ID.
+- **POST /api/medicine**: Add a new medicine to the inventory (Admin access required).
+- **PATCH /api/medicine/:id**: Update the details of a specific medicine (Admin access required).
+- **DELETE /api/medicine/:id**: Delete a specific medicine from the inventory (Admin access required)..
+
 
 ### Orders
 
-- **GET /api/orders**: Retrieve a list of all orders.
-- **GET /api/orders/my-orders/:userId**: Retrieve a list of all orders made by a specific customer.
-- **GET /api/verify/:paymentId**: Verify the payment status for a given payment ID.
-- **GET /api/orders/revenue**: Get the total revenue generated from all orders.
-- **POST /api/orders**: Create a new order, automatically updating the stock quantity.
-- **PATCH /api/orders/change-status/:id**: Update the status of a specific order (identified by ID).
+- **GET /api/orders**: Retrieve a list of all orders (Admin access required).
+- **GET /api/orders/my-orders/:id**: Retrieve a list of orders made by the authenticated user.
+- **GET /api/orders/verify/:paymentId**: Verify the payment status for a given payment ID.
+- **POST /api/orders**: Create a new order, automatically updating stock quantities.
+- **PATCH /api/orders/change-status/:id**: Update the status of a specific order (Admin access required).
 
 
 ## Technologies Used
@@ -115,13 +116,36 @@ The project includes several npm scripts for development and production:
 - **ShurjoPay**: Payment gateway integration for processing transactions.
 - **JWT (JSON Web Token)**: For user authentication and secure token handling.
 - **Bcrypt**: For hashing passwords and ensuring security.
+- **Nodemailer**: For sending email notifications to users.
 - **Zod**: Schema validation library to ensure input data integrity.
 - **ESLint**: Linting tool to enforce consistent coding styles.
 - **Prettier**: Code formatter to maintain consistent formatting across the codebase.
 
-## Project Live Link
+## Project Structure
 
-[Live API](https://pedal-paradise-server.vercel.app)
+```
+src/
+├── app/
+│   ├── modules/
+│   │   ├── auth/
+│   │   ├── medicines/
+│   │   ├── orders/
+│   │   ├── users/
+│   │   └── ...
+│   ├── middlewares/
+│   └── utils/
+├── config/
+├── constants/
+├── errors/
+├── interfaces/
+├── scripts/
+├── app.ts
+└── server.ts
+```
+
+## Server Live Link
+
+[Live API](https://medi-mart-akd-server.vercel.app/)
 
 ## License
 
@@ -134,4 +158,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Special thanks to **Zod**, **Prettier**, and **ESLint** for enhancing code quality and maintainability.
 
 Feel free to clone and contribute to this project. If you find any bugs or have suggestions for improvements, feel free to open an issue or pull request!
-Happy coding! 🚲🛠️
+
+Happy coding! 💊🚀
