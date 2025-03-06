@@ -143,9 +143,10 @@ src/
 └── server.ts
 ```
 
-## Server Live Link
+## Project Live Link
 
-[Live API](https://medi-mart-akd-server.vercel.app/)
+[Client Live API](https://medimart-akd.vercel.app/)
+[Server Live API](https://medi-mart-akd-server.vercel.app/)
 
 ## License
 
